@@ -4,7 +4,6 @@ import math
 CACHE_DIR = "/home/developer/ros_ws/src/robo_drawing"
 DEFAULT_EPS_XYZ = 0.002
 DEFAULT_EPS_ORI = 0.01
-JOINT_ANGLE_DIFF_TOL = 2 * math.pi / 180  # 5 degrees?
 PAPER_HEIGHT = 0.007  # in sim
 # PAPER_HEIGHT = -0.001  # in reality
 # intrinsic

@@ -8,17 +8,6 @@ import pybullet_data
 from pybullet_utils import bullet_client
 
 from ros_sim.sim import SimParams, Simulator, DOFControlMode
-from ros_sim.constants import (
-    MAX_FORCES,
-    MAX_FORCE,
-    JOINT_DAMPING_COEF,
-    POS_GAIN,
-    VEL_GAIN,
-    LOWER_LIMITS,
-    UPPER_LIMITS,
-    JOINT_RANGE,
-    JOINT_REST_ANGLES,
-)
 
 
 class PybulletSimParams(SimParams):
@@ -37,6 +26,22 @@ class PybulletSimParams(SimParams):
         render: bool = True,
         urdf_file_path: str = "",
         sim_dt: float = 0.005,
+        max_forces: Tuple[float] = [50.0, 50.0, 50.0, 50.0, 50.0, 50.0],
+        max_force: float = 50.0,
+        joint_damping_coef: Tuple[float] = [
+            1.1,
+            1.1,
+            1.1,
+            1.1,
+            1.1,
+            1.1,
+        ],
+        pos_gain: Optional[Tuple[float]] = None,
+        vel_gain: Optional[Tuple[float]] = None,
+        lower_limits: Tuple[float] = [np.pi] * 6,
+        upper_limits: Tuple[float] = [np.pi] * 6,
+        joint_range: Tuple[float] = [2 * np.pi] * 6,
+        joint_rest_angles: Tuple[float] = [0.0] * 6,
     ):
         """A container class to hold parameters used in the pybullet simulation, in addition to the ones in the baseclass.
 
@@ -62,6 +67,16 @@ class PybulletSimParams(SimParams):
             )
         self.decimation = int(self.dt / self.sim_dt)
 
+        self.max_forces = max_forces
+        self.max_force = max_force
+        self.joint_damping_coef = joint_damping_coef
+        self.pos_gain = pos_gain
+        self.vel_gain = vel_gain
+        self.lower_limits = lower_limits
+        self.upper_limits = upper_limits
+        self.joint_range = joint_range
+        self.joint_rest_angles = joint_rest_angles
+
 
 class PybulletSim(Simulator):
 
@@ -85,6 +100,16 @@ class PybulletSim(Simulator):
         self.__joint_pos = [0.0 for i in range(self.n_dof)]
         self.__joint_vel = [0.0 for i in range(self.n_dof)]
         self.__joint_torque = [0.0 for i in range(self.n_dof)]
+
+        self.max_forces = params.max_forces
+        self.max_force = params.max_force
+        self.joint_damping_coef = params.joint_damping_coef
+        self.pos_gain = params.pos_gain
+        self.vel_gain = params.vel_gain
+        self.lower_limits = params.lower_limits
+        self.upper_limits = params.upper_limits
+        self.joint_range = params.joint_range
+        self.joint_rest_angles = params.joint_rest_angles
 
     def __buildLinkNameToId(self):
         """
@@ -158,7 +183,7 @@ class PybulletSim(Simulator):
                 jointIndex=joint_idx,
                 controlMode=pb.POSITION_CONTROL,
                 targetPosition=0,
-                force=MAX_FORCE,
+                force=self.max_force,
             )
 
         self.reset()
@@ -233,16 +258,16 @@ class PybulletSim(Simulator):
         Args:
             control (Tuple[float]): control input
         """
-        if POS_GAIN is not None and VEL_GAIN is not None:
+        if self.pos_gain is not None and self.vel_gain is not None:
             self.pybullet_client.setJointMotorControlArray(
                 bodyIndex=self.bot_pybullet,
                 jointIndices=self.joint_indices,
                 controlMode=self.pybullet_client.POSITION_CONTROL,
                 targetPositions=control,
-                forces=MAX_FORCES,
+                forces=self.max_forces,
                 targetVelocities=[0 for i in range(self.n_dof)],
-                positionGains=POS_GAIN,
-                velocityGains=VEL_GAIN,
+                positionGains=self.pos_gain,
+                velocityGains=self.vel_gain,
             )
         else:
             self.pybullet_client.setJointMotorControlArray(
@@ -250,7 +275,7 @@ class PybulletSim(Simulator):
                 jointIndices=self.joint_indices,
                 controlMode=self.pybullet_client.POSITION_CONTROL,
                 targetPositions=control,
-                forces=MAX_FORCES,
+                forces=self.max_forces,
                 targetVelocities=[0 for i in range(self.n_dof)],
             )
 
@@ -365,11 +390,11 @@ class PybulletSim(Simulator):
                 link_idx,
                 targetPosition=target_xyz,
                 targetOrientation=targetOri,
-                jointDamping=JOINT_DAMPING_COEF,
-                lowerLimits=LOWER_LIMITS,
-                upperLimits=UPPER_LIMITS,
-                jointRanges=JOINT_RANGE,
-                restPoses=JOINT_REST_ANGLES,
+                jointDamping=self.joint_damping_coef,
+                lowerLimits=self.lower_limits,
+                upperLimits=self.upper_limits,
+                jointRanges=self.joint_range,
+                restPoses=self.joint_rest_angles,
             )
 
             for i in range(len(joint_angles)):

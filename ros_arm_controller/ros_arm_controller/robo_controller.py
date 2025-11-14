@@ -9,18 +9,16 @@ from sensor_msgs.msg import JointState
 import numpy as np
 import matplotlib.pyplot as plt
 
-
-from ros_sim.constants import DOF_NAMES, JOINT_REST_ANGLES
 from ros_arm_controller.trajectory import TrajectoryPlanner
 from ros_arm_controller.constants import (
     CACHE_DIR,
     DEFAULT_EPS_XYZ,
     DEFAULT_EPS_ORI,
-    JOINT_ANGLE_DIFF_TOL,
     X_PLOT_LIM,
     Y_PLOT_LIM,
     Z_PLOT_LIM,
 )
+from ros_sim.utils import import_constants
 
 
 class RoboController(Node):
@@ -36,7 +34,9 @@ class RoboController(Node):
         )
 
         self.use_clock_time = False
-        # self.declare_parameter('target_frame', rclpy.Parameter.Type.STRING)
+        self.declare_parameter(
+            "robot_name", rclpy.Parameter.Type.STRING
+        )  # mycobot_280, franka_panda
 
         self.traj_planner = None  # need starting angles
         self.cur_joint_angles = None
@@ -61,6 +61,35 @@ class RoboController(Node):
 
         self.traj_seg_name = None
 
+        self.robot_name = (
+            self.get_parameter("robot_name").get_parameter_value().string_value
+        )
+        (
+            MAX_FORCE,
+            LINK_NAME,
+            DOF_NAMES,
+            JOINT_LIMITS,
+            LOWER_LIMITS,
+            UPPER_LIMITS,
+            JOINT_RANGE,
+            JOINT_REST_ANGLES,
+            URDF_PACKAGE,
+            URDF_PATH_WITHIN_PACAKGE,
+            URDF_PATH_TO_MESHES,
+            JOINT_DAMPING_COEF,
+            MAX_FORCES,
+            POS_GAIN,
+            VEL_GAIN,
+        ) = import_constants(self.robot_name)
+
+        self.dof_names = DOF_NAMES
+        self.joint_rest_angles = JOINT_REST_ANGLES
+
+        if self.robot_name == "mycobot_280":
+            self.joint_angle_diff_tol = 5 * math.pi / 180
+        else:
+            self.joint_angle_diff_tol = 2 * math.pi / 180
+
     def joint_sub_cb(self, msg):
 
         joint_names = msg.name
@@ -69,7 +98,10 @@ class RoboController(Node):
 
         if self.traj_planner is None:
             self.get_logger().info(f"initializing trajectory planner")
-            traj_planner = TrajectoryPlanner(loop_rate=self.target_loop_rate)
+
+            traj_planner = TrajectoryPlanner(
+                loop_rate=self.target_loop_rate, robot_name=self.robot_name
+            )
             self.get_logger().info(f"calculating traj")
             print(f"start: {joint_positions}")
             success = traj_planner.make_joint_traj(cur_angles=joint_positions)
@@ -123,7 +155,7 @@ class RoboController(Node):
         ori_diff = np.linalg.norm(euler_cur - np.array(ori))
 
         if not self.use_clock_time:
-            if joint_angle_diff < JOINT_ANGLE_DIFF_TOL:
+            if joint_angle_diff < self.joint_angle_diff_tol:
                 self.cur_time += self.target_dt
             else:
                 self.get_logger().info(
@@ -137,7 +169,7 @@ class RoboController(Node):
         joint_msg.header.stamp = self.get_clock().now().to_msg()
 
         if done:
-            joint_angles = JOINT_REST_ANGLES
+            joint_angles = self.joint_rest_angles
             self.traj_planner = None
             self.starting_time_sec = None
             self.time_updated = False
@@ -170,7 +202,7 @@ class RoboController(Node):
             self.xyz_plotted.clear()
 
         for i in range(len(joint_angles)):
-            name = DOF_NAMES[i]
+            name = self.dof_names[i]
             pos = joint_angles[i]
             joint_msg.position.append(pos)
             joint_msg.name.append(name)

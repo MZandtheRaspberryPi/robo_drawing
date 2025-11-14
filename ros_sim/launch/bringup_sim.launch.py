@@ -17,6 +17,14 @@ def generate_launch_description():
 
     ld.add_action(
         DeclareLaunchArgument(
+            "robot_name",
+            default_value="mycobot_280",
+            description="Robot name to load, either mycobot_280 or franka_panda.",
+        )
+    )
+
+    ld.add_action(
+        DeclareLaunchArgument(
             "base_link",
             default_value="base",
             description="The base link of the robot. We will publish static transform from the world to this, as identity.",
@@ -39,7 +47,12 @@ def generate_launch_description():
     )
     ld.add_action(static_tf)
 
-    sim_node = Node(package="ros_sim", executable="ros_sim", output="screen")
+    sim_node = Node(
+        package="ros_sim",
+        executable="ros_sim",
+        output="screen",
+        parameters=[{"robot_name": LaunchConfiguration("robot_name")}],
+    )
     ld.add_action(sim_node)
 
     return ld

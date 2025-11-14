@@ -1,7 +1,13 @@
 # robo_drawing
 
+A general overview is presented here. First, pull the docker image. This contains ros2, pybullet. Then we will run the docker image letting it access X11 ports so as to bring up graphical user interfaces (GUIs) and letting it access the folder on our computer where we have our own code. Inside of the docker container, we will build our own code (should be fast, python) and then run it. To use the real robot we will download a special docker image (built for ARM, doesn't include moveit2 as it's too heavy) and then zip it and copy it to the raspberrypi on the robot. Then we will connect to the robot and run everything from there. Students in the past have had networking trouble related to MAC/Windows machines and therefore we avoid this issue by running everything on the robot.
+
 ```
-docker run -it --rm -v $HOME/robo_drawing:/home/ros_ws/src/robo_drawing --env="DISPLAY" \
+cd $HOME
+git clone https://github.com/MZandtheRaspberryPi/robo_drawing.git
+cd robo_drawing
+docker build -f docker/Dockerfile -t robodraw --progress plain .
+docker run -it --rm -v $HOME/robo_drawing:/home/developer/ros_ws/src/robo_drawing --env="DISPLAY" \
     --env="QT_X11_NO_MITSHM=1" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
     robodraw
@@ -12,60 +18,15 @@ colcon build --symlink-install --parallel-workers 4 --cmake-args -DCMAKE_BUILD_T
 Now we bring up the simulation for the first time. This should produce a window similar to the first screenshot in this section. 
 ```
 source install/setup.bash
-ros2 launch ros_sim bringup_sim.launch.py
+ros2 launch ros_sim bringup_sim.launch.py robot_name:=franka_panda
 ```
 
-
-
-
-A general overview is presented here, details and steps are in sub-headers. First, pull the docker image. This contains ros2, pybullet, and moveit2 with all the libraries needed for this lab and everything compiled for you (moveit2 takes like 30min to compile), you're welcome. Then we will run the docker image letting it access X11 ports so as to bring up graphical user interfaces (GUIs) and letting it access the folder on our computer where we have our own code. Inside of the docker container, we will build our own code (should be fast, python) and then run it. To use the real robot we will download a special docker image (built for ARM, doesn't include moveit2 as it's too heavy) and then zip it and copy it to the raspberrypi on the robot. Then we will connect to the robot and run everything from there. Students in the past have had networking trouble related to MAC/Windows machines and therefore we avoid this issue by running everything on the robot.
-
-## get docker file
-
+To run the arm controller
 ```
-docker pull --platform linux/amd64 mzandtheraspberrypi/ros_sim:2025-10-24
+ros2 run ros_arm_controller robo_controller --ros-args -p robot_name:=franka_panda
 ```
 
-## running examples on your laptop
-
-```
-docker run --rm --platform linux/amd64 -it -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY -e QT_X11_NO_MITSHM=1 --network host -v /home/student/ros_sim:/home/developer/ros_ws/src/ros_sim mzandtheraspberrypi/ros_sim:2025-10-24
-sudo apt-get remove -y python3-matplotlib
-cd ros_ws
-colcon build --symlink-install --packages-up-to ros_sim ros_arm_controller ros_cobot_controller
-source install/setup.bash
-ros2 run ros_sim pybullet_ex
-```
-
-A command may be published with the below:
-```
-ros2 topic pub -1 /target_joint_states sensor_msgs/msg/JointState "{position: [1.5, 0.0, 0.0, 0.0, 0.0, 0.0]}"
-```
-
-You may open more terminals to allow introspection with:
-```
-docker exec -it $(docker ps -lq) /bin/bash
-cd ros_ws
-source install/setup.bash
-ros2 topic list
-```
-
-To run the controller:
-
-```
-docker exec -it $(docker ps -lq) /bin/bash
-cd ros_ws
-source install/setup.bash
-ros2 run ros_arm_controller robo_controller --ros-args -p use_sim_time:=true
-```
-
-To run Moveit2:
-```
-colcon build --symlink-install --packages-select mycobot_moveit2
-ros2 launch mycobot_moveit2 demo.launch.py
-```
-
-## Running on the arm
+## Running on the mycobot arm
 
 ### copy your code over
 
@@ -75,14 +36,14 @@ Robot ip address: 10.42.0.1, user: er, password: elephant (or Elephant) —“ss
 Compress and copy the folder over
 ```
 cd ~
-tar -czf ros_sim.tar.gz ros_sim
-scp ros_sim.tar.gz er@10.42.0.1:/home/er
+tar -czf robo_drawing.tar.gz robo_drawing
+scp robo_drawing.tar.gz er@10.42.0.1:/home/er
 ```
 
 Unzip the folder
 ```
 ssh er@10.42.0.1
-tar -mxzf ros_sim.tar.gz
+tar -mxzf robo_drawing.tar.gz
 ```
 
 ### copy arm docker image to the cobot
@@ -113,7 +74,7 @@ rm docker_ros_sim_arm.tar.gz
 ### running examples on the robot
 
 ```
-docker run --rm -it --network host --device /dev/ttyAMA0 -v /home/er/ros_sim:/home/developer/ros_ws/src/ros_sim -v /dev/shm:/dev/shm mzandtheraspberrypi/ros_sim:2024-10-24
+docker run --rm -it --network host --device /dev/ttyAMA0 -v /home/er/robo_drawing:/home/developer/ros_ws/src/robo_drawing -v /dev/shm:/dev/shm mzandtheraspberrypi/ros_sim:2024-10-24
 sudo apt-get remove -y python3-matplotlib
 cd ros_ws
 colcon build --symlink-install
@@ -125,15 +86,15 @@ ros2 run ros_cobot_controller cobot_controller --ros-args -p mycobot_speed:=30
 docker exec -it $(docker ps -lq) /bin/bash
 cd ros_ws
 source install/setup.bash
-ros2 run ros_arm_controller robo_controller --ros-args -p use_sim_time:=false
+ros2 run ros_arm_controller robo_controller --ros-args -p use_sim_time:=false -p robot_name:=mycobot_280
 ```
 
 
 ### If the image hasn't yet been built on the cobot:
-Compress the entire folder so we can copy it over to the robot and build the docker image there...
+Compress the entire folder so we can copy it over to the robot and build the docker image there...But, don't do it on the arm's raspberry pi, do it on a Raspberry Pi 4 or higher as the arm's raspberry pi isn't strong enough to build the image.
 
 ```
-tar -czf /home/$USER/ros_sim.tar.gz /home/$USER/ros_sim
+tar -czf /home/$USER/robo_drawing.tar.gz /home/$USER/robo_drawing
 ```
 
 Connect to the robot's WIFI via your Ubuntu wifi interface (top right of screen). The WLAN should be named after the robot ID which is on a label on the base of the robot. Double check you are connected to the right robot--if you move a robot from somebody else's group that may surprise them and cause some damage to the robot or people. Check the robot's IP address, and SCP the file into the robot.
@@ -150,34 +111,22 @@ Connect HDMI and mouse to robot, switch wifi to one with internet using virtual 
 
 Copy the folder over....
 ```
-scp /home/$USER/ros_sim.tar.gz er@192.168.1.113:/home/er
+scp /home/$USER/robo_drawing.tar.gz er@192.168.1.113:/home/er
 ```
 
 SSH via new connection with ip address (from angry ip scanner for example, will depend on network you connect to)
 ```
 ssh er@192.168.1.113
-tar -xzf ros_sim.tar.gz
-docker build -f docker/Dockerfile -t ros_sim .
-docker save ros_sim:latest | gzip > ros_sim_latest.tar.gz
+tar -xzf robo_drawing.tar.gz
+docker build -f docker/Dockerfile -t robo_drawing .
+docker save robo_drawing:latest | gzip > robo_drawing_latest.tar.gz
 ```
 
 copy docker image back out
 ```
-scp er@192.168.1.113:/home/er/ros_sim_latest.tar.gz .
+scp er@192.168.1.113:/home/er/robo_drawing_latest.tar.gz .
 ```
 
-
-## building dockerfile
-
-Has to be built for ARM and for AMD. don't try and build it on a raspberry pi 3b+. Use 4 or higher more. Or build it on a jetson and then transfer it.
-
-```
-docker build -f docker/Dockerfile -t ros_sim --progress plain .
-```
-
-## citations
-
-https://mathweb.ucsd.edu/~sbuss/ResearchWeb/ikmethods/SdlsPaper.pdf for overview including jacobian iterations, and damped least squares
 
 ## troubleshooting:
 

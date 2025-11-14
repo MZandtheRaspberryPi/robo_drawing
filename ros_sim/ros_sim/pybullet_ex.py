@@ -12,9 +12,7 @@ from rclpy.node import Node
 
 from rosgraph_msgs.msg import Clock
 from sensor_msgs.msg import JointState
-
-from ros_sim.constants import MAX_FORCE, DOF_NAMES, JOINT_REST_ANGLES, LINK_NAME
-from ros_sim.utils import get_urdf_path
+from ros_sim.utils import get_urdf_path, import_constants
 from ros_sim.pybullet_sim import PybulletSimParams, PybulletSim
 
 import time
@@ -34,19 +32,59 @@ class RosSim(Node):
 
         self.cur_time = 0.0
 
-        self.run_demo = True
-        self.path_to_urdf = get_urdf_path()
+        self.declare_parameter(
+            "robot_name", rclpy.Parameter.Type.STRING
+        )  # mycobot_280, franka_panda
+
+        (
+            MAX_FORCE,
+            LINK_NAME,
+            DOF_NAMES,
+            JOINT_LIMITS,
+            LOWER_LIMITS,
+            UPPER_LIMITS,
+            JOINT_RANGE,
+            JOINT_REST_ANGLES,
+            URDF_PACKAGE,
+            URDF_PATH_WITHIN_PACAKGE,
+            URDF_PATH_TO_MESHES,
+            JOINT_DAMPING_COEF,
+            MAX_FORCES,
+            POS_GAIN,
+            VEL_GAIN,
+        ) = import_constants(
+            self.get_parameter("robot_name").get_parameter_value().string_value
+        )
+
+        self.link_name = LINK_NAME
+        self.max_force = MAX_FORCE
+
+        self.path_to_urdf = get_urdf_path(
+            URDF_PACKAGE, URDF_PATH_WITHIN_PACAKGE, URDF_PATH_TO_MESHES
+        )
 
         self.get_logger().info(f"loading: {self.path_to_urdf}")
 
         self.params = PybulletSimParams(
-            urdf_file_path=self.path_to_urdf, dof_names=DOF_NAMES, n_dof=len(DOF_NAMES)
+            urdf_file_path=self.path_to_urdf,
+            dof_names=DOF_NAMES,
+            n_dof=len(DOF_NAMES),
+            max_force=MAX_FORCE,
+            max_forces=MAX_FORCES,
+            joint_damping_coef=JOINT_DAMPING_COEF,
+            pos_gain=POS_GAIN,
+            vel_gain=VEL_GAIN,
+            lower_limits=LOWER_LIMITS,
+            upper_limits=UPPER_LIMITS,
+            joint_range=JOINT_RANGE,
+            joint_rest_angles=JOINT_REST_ANGLES,
         )
 
         self.sim = PybulletSim(self.params)
         self.timer = self.create_timer(self.params.dt, self.timer_callback)
         self.sim.setup()
         self.goal_angles = JOINT_REST_ANGLES
+        self.dof_names = DOF_NAMES
 
     def joint_target_cb(self, msg: JointState):
         """Cache the target joint angles from a controller
@@ -59,7 +97,7 @@ class RosSim(Node):
         for i in range(len(msg.position)):
 
             joint_name = msg.name[i]
-            joint_idx = DOF_NAMES.index(joint_name)
+            joint_idx = self.dof_names.index(joint_name)
             goal_angles[joint_idx] = msg.position[i]
 
         self.goal_angles = goal_angles
@@ -103,12 +141,12 @@ class RosSim(Node):
         self.joint_state_pub.publish(joint_msg)
 
         link_world_pos, link_world_ori, link_lin_vel, link_ang_vel = (
-            self.sim.get_link_state(LINK_NAME)
+            self.sim.get_link_state(self.link_name)
         )
 
-        if np.any(np.abs(tau) == MAX_FORCE):
+        if np.any(np.abs(tau) == self.max_force):
             self.get_logger().error(
-                f"force is at max, please check for collisions. Max force: {MAX_FORCE}, joint torques: {tau}"
+                f"force is at max, please check for collisions. Max force: {self.max_force}, joint torques: {tau}"
             )
 
     def shutdown(self):

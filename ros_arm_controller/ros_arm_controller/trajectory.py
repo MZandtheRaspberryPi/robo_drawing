@@ -6,6 +6,7 @@ import pickle
 from typing import Callable, Dict, Tuple, Optional
 
 import numpy as np
+
 from ros_arm_controller.constants import (
     CACHE_DIR,
     PAPER_HEIGHT,
@@ -21,8 +22,7 @@ from sensor_msgs.msg import JointState
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from ros_sim.utils import get_urdf_path
-from ros_sim.constants import DOF_NAMES, JOINT_REST_ANGLES, LINK_NAME
+from ros_sim.utils import get_urdf_path, import_constants
 from ros_sim.pybullet_sim import PybulletSimParams, PybulletSim
 import pybullet as pb
 
@@ -131,11 +131,12 @@ def interpolate_joint_angles(
 
 class TrajectoryPlanner:
 
-    def __init__(self, loop_rate: int = 10):
+    def __init__(self, loop_rate: int = 10, robot_name: str = "mycobot_280"):
         """Class to plan a trajectory and cache a calculated trajectory in ros_arm_controller.constants.CACHE_DIR directory
 
         Args:
             loop_rate (int, optional): How many waypoints per second. Higher results in longer calculations. Defaults to 10.
+            robot_name (str): which robot to load data for
         """
 
         self.loop_rate = loop_rate
@@ -143,36 +144,78 @@ class TrajectoryPlanner:
         self.start_time = 0.0
         self.rpy = [2.75, 0.0, 0.0]
 
-        self.starting_x = 0.4
-        self.starting_y = 0.2
+        self.robot_name = robot_name
+
         self.x_diff = 0.05
         self.y_diff = 0.025
 
         self.starting_z = 0.025
+        if robot_name == "mycobot_280":
+            self.starting_x = 0.125
+            self.starting_y = 0.2
+        else:
+            self.starting_x = 0.4
+            self.starting_y = 0.2
+
         self.paper_height = PAPER_HEIGHT
 
-        self.path_to_urdf = get_urdf_path()
+        (
+            MAX_FORCE,
+            LINK_NAME,
+            DOF_NAMES,
+            JOINT_LIMITS,
+            LOWER_LIMITS,
+            UPPER_LIMITS,
+            JOINT_RANGE,
+            JOINT_REST_ANGLES,
+            URDF_PACKAGE,
+            URDF_PATH_WITHIN_PACAKGE,
+            URDF_PATH_TO_MESHES,
+            JOINT_DAMPING_COEF,
+            MAX_FORCES,
+            POS_GAIN,
+            VEL_GAIN,
+        ) = import_constants(robot_name)
+
+        self.link_name = LINK_NAME
+        self.max_force = MAX_FORCE
+
+        self.path_to_urdf = get_urdf_path(
+            URDF_PACKAGE, URDF_PATH_WITHIN_PACAKGE, URDF_PATH_TO_MESHES
+        )
 
         self.params = PybulletSimParams(
             urdf_file_path=self.path_to_urdf,
             dof_names=DOF_NAMES,
-            render=False,
             n_dof=len(DOF_NAMES),
+            max_force=MAX_FORCE,
+            max_forces=MAX_FORCES,
+            joint_damping_coef=JOINT_DAMPING_COEF,
+            pos_gain=POS_GAIN,
+            vel_gain=VEL_GAIN,
+            lower_limits=LOWER_LIMITS,
+            upper_limits=UPPER_LIMITS,
+            joint_range=JOINT_RANGE,
+            joint_rest_angles=JOINT_REST_ANGLES,
+            render=False,
         )
+
+        self.joint_rest_angles = JOINT_REST_ANGLES
+        self.dof_names = DOF_NAMES
 
         self.sim = PybulletSim(self.params)
         self.sim.setup()
         ori_targ_quat = pb.getQuaternionFromEuler(self.rpy)
-        self.initial_guess = JOINT_REST_ANGLES
+        self.initial_guess = self.joint_rest_angles
         self.first_joint_angle_pose, _ = self.sim.get_ik(
-            LINK_NAME,
+            self.link_name,
             [self.starting_x, self.starting_y, self.starting_z],
             targetOri=ori_targ_quat,
             cur_angles=self.initial_guess,
         )
 
         xyz_goal, link_world_ori_quat, link_lin_vel, link_ang_vel = (
-            self.sim.get_link_state(LINK_NAME, self.first_joint_angle_pose)
+            self.sim.get_link_state(self.link_name, self.first_joint_angle_pose)
         )
 
         ori_goal = pb.getEulerFromQuaternion(link_world_ori_quat)
@@ -317,7 +360,7 @@ class TrajectoryPlanner:
                 interpolate_joint_angles=True,
                 fn_kwargs={
                     "starting_joint_angles": None,
-                    "ending_joint_angles": JOINT_REST_ANGLES,
+                    "ending_joint_angles": self.joint_rest_angles,
                 },
                 fn=interpolate_joint_angles,
             ),
@@ -341,7 +384,7 @@ class TrajectoryPlanner:
 
     def get_transform_last_frame(self, joint_angles: Tuple[float]):
         xyz_world, link_world_ori_quat, link_lin_vel, link_ang_vel = (
-            self.sim.get_link_state(LINK_NAME, joint_angles)
+            self.sim.get_link_state(self.link_name, joint_angles)
         )
 
         ori_euler = pb.getEulerFromQuaternion(link_world_ori_quat)
@@ -381,7 +424,7 @@ class TrajectoryPlanner:
             # for first and last traj segment we will fill in the prior angles as the starting point
             if traj_segment.fn_kwargs["starting_joint_angles"] is None:
                 if prior_joint_angles is None:
-                    prior_joint_angles = JOINT_REST_ANGLES
+                    prior_joint_angles = self.joint_rest_angles
                 traj_segment.fn_kwargs["starting_joint_angles"] = prior_joint_angles
             angles_targ = interpolate_joint_angles(
                 t, starting_time=start_time, duration=duration, **traj_segment.fn_kwargs
@@ -396,7 +439,7 @@ class TrajectoryPlanner:
             )
             ori_targ_quat = pb.getQuaternionFromEuler(ori_goal)
             angles_targ, success = self.sim.get_ik(
-                LINK_NAME,
+                self.link_name,
                 xyz_goal,
                 targetOri=ori_targ_quat,
                 cur_angles=prior_joint_angles,
@@ -414,18 +457,6 @@ class TrajectoryPlanner:
         Returns:
             bool: Whether all solves converged succesfully
         """
-
-        if os.path.exists(self.cache_file):
-            with open(self.cache_file, "rb") as file_handle:
-                data = pickle.load(file_handle)
-            self.traj_times = data["times"]
-            self.traj_angles = data["angles_traj"]
-            self.xyz_goals = data["xyz_goals"]
-            self.ori_goals = data["ori_goals"]
-            self.xyz_calc = data["xyz_calc"]
-            self.ori_calc = data["ori_calc"]
-            self.names = data["names"]
-            return
 
         cur_time = self.start_time
         # we adjust the starting segment such that it starts from current xzy
