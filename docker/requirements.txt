@@ -1,0 +1,11 @@
+jupyterlab
+ipywidgets
+ipympl
+jupyterlab_widgets
+scipy
+jax==0.6.2
+matplotlib==3.10.6
+tqdm
+pymycobot==3.4.9
+opencv-python # hidden dep of pymycobot
+numpy<2.0.0
