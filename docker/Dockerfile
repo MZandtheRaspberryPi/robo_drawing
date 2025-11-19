@@ -9,11 +9,13 @@ RUN apt-get update && apt-get install -y python3-pip \
     pkg-config
 
 ENV USERNAME=developer
+RUN addgroup realtime
 # we use uid of 1000, seems to be default in ubuntu but change if different
 RUN useradd -U --uid 1000 -ms /bin/bash $USERNAME \
     && echo "$USERNAME:$USERNAME" | chpasswd \
     && adduser $USERNAME sudo \
     && adduser $USERNAME dialout \
+    && adduser $USERNAME realtime \
     && echo "$USERNAME ALL=NOPASSWD: ALL" >> /etc/sudoers.d/$USERNAME
 
 RUN echo "source /opt/ros/humble/setup.bash" >> /home/$USERNAME/.bashrc
@@ -43,3 +45,16 @@ SHELL ["/bin/bash", "-c"]
 RUN cd /home/$USERNAME/ros_ws/ && source /opt/ros/humble/setup.bash && colcon build --symlink-install --parallel-workers 4 --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 RUN sudo apt-get update && sudo apt-get install -y ros-humble-python-orocos-kdl-vendor ros-humble-orocos-kdl-vendor ros-humble-kdl-parser
+
+# installing franka stuff
+RUN sudo apt update && sudo apt install -y build-essential cmake git libpoco-dev libeigen3-dev \
+    && git clone https://github.com/frankarobotics/libfranka.git \
+    && cd libfranka \
+    && git checkout 0.9.2 \
+    && git submodule init \
+    && git submodule update \
+    && mkdir build \
+    && cd build \
+    && cmake -DCMAKE_BUILD_TYPE=Release .. \
+    && make -j4 \
+    && sudo make install

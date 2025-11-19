@@ -149,7 +149,7 @@ class TrajectoryPlanner:
         self.x_diff = 0.05
         self.y_diff = 0.025
 
-        self.starting_z = 0.025
+        self.starting_z = 0.04
         if robot_name == "mycobot_280":
             self.starting_x = 0.125
             self.starting_y = 0.2

@@ -33,7 +33,7 @@ class RoboController(Node):
             JointState, "/target_joint_states", 5
         )
 
-        self.use_clock_time = False
+        self.use_clock_time = True
         self.declare_parameter(
             "robot_name", rclpy.Parameter.Type.STRING
         )  # mycobot_280, franka_panda

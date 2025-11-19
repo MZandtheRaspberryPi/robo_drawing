@@ -7,7 +7,7 @@ cd $HOME
 git clone https://github.com/MZandtheRaspberryPi/robo_drawing.git
 cd robo_drawing
 docker build -f docker/Dockerfile -t robodraw --progress plain .
-docker run -it --rm -v $HOME/robo_drawing:/home/developer/ros_ws/src/robo_drawing --env="DISPLAY" \
+docker run -it --rm --network host -v $HOME/robo_drawing:/home/developer/ros_ws/src/robo_drawing --env="DISPLAY" \
     --env="QT_X11_NO_MITSHM=1" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
     robodraw
@@ -23,7 +23,7 @@ ros2 launch ros_sim bringup_sim.launch.py robot_name:=franka_panda
 
 To run the arm controller
 ```
-ros2 run ros_arm_controller robo_controller --ros-args -p robot_name:=franka_panda
+ros2 run ros_arm_controller robo_controller --ros-args -p robot_name:=franka_panda -p use_sim_time:=false
 ```
 
 ## Running on the mycobot arm
@@ -46,7 +46,7 @@ ssh er@10.42.0.1
 tar -mxzf robo_drawing.tar.gz
 ```
 
-### copy arm docker image to the cobot
+### copy arm docker image to the mycobot_280
 
 This step only needs to be done once.
 
@@ -71,7 +71,7 @@ rm docker_ros_sim_arm.tar.gz
 ```
 
 
-### running examples on the robot
+### running examples on the mycobot_280 robot
 
 ```
 docker run --rm -it --network host --device /dev/ttyAMA0 -v /home/er/robo_drawing:/home/developer/ros_ws/src/robo_drawing -v /dev/shm:/dev/shm mzandtheraspberrypi/ros_sim:2024-10-24
@@ -126,6 +126,28 @@ copy docker image back out
 ```
 scp er@192.168.1.113:/home/er/robo_drawing_latest.tar.gz .
 ```
+
+## running on the franka panda arm
+
+If you haven't worked with this robot before, don't try it. Work with someone who has to test the robot safely. You will need to install and enable a real-time kernel (for me i select on boot this kernel). Ensure a hard ethernet connection for fast commands. And then find the robot IP Address. Then to use from docker you'll need to ensure the docker container is build with same username and UID as the user you want to use. Run commands with sudo inside of docker, and add privileged (`sudo su`). Also note all nodes need to run as su, as by default shared memory is used to pass messages and this doesn't work between users immediately.
+
+```
+docker run -it --rm --network host -v $HOME/robo_drawing:/home/student/ros_ws/src/robo_drawing --env="DISPLAY" \
+    --env="QT_X11_NO_MITSHM=1" \
+    --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+    --privileged \
+    robodraw
+colcon build --symlink-install --parallel-workers 4 --cmake-args -DCMAKE_BUILD_TYPE=Release
+ros2 run ros_franka_controller franka_controller --ros-args -p franka_address:=192.168.2.20
+```
+
+```
+export PYTHONPATH=$PYTHONPATH:/home/developer/.local/lib/python3.10/site-packages/:/home/developer/bullet3/build_cmake/examples/pybullet/
+ros2 run ros_arm_controller robo_controller --ros-args -p robot_name:=franka_panda -p use_sim_time:=false
+```
+
+To turn on the robot, look at yellow estop and twist and pull up to turn on. lights should come up.
+
 
 
 ## troubleshooting:
