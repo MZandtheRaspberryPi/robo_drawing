@@ -1,6 +1,6 @@
 # robo_drawing
 
-A fun project to support some workshops I led for students with small robot arms. See some videos comparing the small robot arm [here](https://www.youtube.com/shorts/JGbJK4ZtMNg) to a bigger one [here](https://www.youtube.com/shorts/GrULKwoRGd8).
+A fun project to support some workshops I led for students with small robot arms. The template code for the workshops (that needs filling in and some math) is [here](https://github.com/MZandtheRaspberryPi/kinematics_workshop). This repo doesn't have any code to fill in or math, it uses pybullet for the heavy lifting (thoguh if you run on franka do some tests in sim, check trajectories, and check the URDF vs your robot first). See some videos comparing the small robot arm [here](https://www.youtube.com/shorts/JGbJK4ZtMNg) to a bigger one [here](https://www.youtube.com/shorts/GrULKwoRGd8).
 
 ![franka_with_pen](assets/franka_mount.jpeg)   
 ![franka_drawing](assets/end_traj.jpeg)   
