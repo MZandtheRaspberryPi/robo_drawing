@@ -4,7 +4,7 @@ import math
 CACHE_DIR = "/home/developer/ros_ws/src/robo_drawing"
 DEFAULT_EPS_XYZ = 0.002
 DEFAULT_EPS_ORI = 0.01
-PAPER_HEIGHT = 0.04  # in sim
+PAPER_HEIGHT = 0.006  # in sim
 # PAPER_HEIGHT = -0.001  # in reality
 # intrinsic
 ROTATION_SCHEMA = "xyz"

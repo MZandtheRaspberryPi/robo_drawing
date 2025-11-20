@@ -65,7 +65,7 @@ static int move_robot(RobotJointState &out_state, std::mutex &state_mtx, std::ar
 
         std::array<double, 7> q_goal = {{REST_POSE[0], REST_POSE[1], REST_POSE[2], REST_POSE[3], REST_POSE[4], REST_POSE[5], REST_POSE[6]}};
         std::cout << "moving robot to rest pose" << std::endl;
-        MotionGenerator motion_generator(1.0, q_goal, &out_state, &state_mtx);
+        MotionGenerator motion_generator(0.25, q_goal, &out_state, &state_mtx);
         robot.control(motion_generator);
         std::cout << "done moving robot to rest pose" << std::endl;
         std::this_thread::sleep_for(500ms);
@@ -107,9 +107,8 @@ static int move_robot(RobotJointState &out_state, std::mutex &state_mtx, std::ar
                 }
             }
 
-            MotionGenerator motion_generator(1.0, q_goal, &out_state, &state_mtx);
+            MotionGenerator motion_generator(0.15, q_goal, &out_state, &state_mtx);
             robot.control(motion_generator);
-            std::this_thread::sleep_for(500ms);
         }
     }
     catch (const franka::Exception &e)

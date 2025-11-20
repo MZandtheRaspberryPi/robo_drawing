@@ -321,7 +321,7 @@
 
 
   <joint name="pen_holder_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 0.107"/>
+    <origin rpy="0 0 0.0" xyz="0 0 0.107"/>
     <parent link="fr3_link7"/>
     <child link="pen_holder"/>
   </joint>
@@ -348,14 +348,14 @@
   </link>
 
   <joint name="pen_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0.04 0.0 0.0"/>
+    <origin rpy="0 0 0.0" xyz="0.04 0.0 0.0"/>
     <parent link="pen_holder"/>
     <child link="pen"/>
   </joint>
   
   <link name="pen_tip"/>
   <joint name="pen_joint_to_tip" type="fixed">
-    <origin rpy="0 0 0" xyz="0.0 0.0 0.14"/>
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.157"/>
     <parent link="pen"/>
     <child link="pen_tip"/>
   </joint>

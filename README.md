@@ -129,14 +129,15 @@ scp er@192.168.1.113:/home/er/robo_drawing_latest.tar.gz .
 
 ## running on the franka panda arm
 
-If you haven't worked with this robot before, don't try it. Work with someone who has to test the robot safely. You will need to install and enable a real-time kernel (for me i select on boot this kernel). Ensure a hard ethernet connection for fast commands. And then find the robot IP Address. Then to use from docker you'll need to ensure the docker container is build with same username and UID as the user you want to use. Run commands with sudo inside of docker, and add privileged (`sudo su`). Also note all nodes need to run as su, as by default shared memory is used to pass messages and this doesn't work between users immediately.
+If you haven't worked with this robot before, don't try it. Work with someone who has to test the robot safely. You will need to install and enable a real-time kernel (for me i select on boot this kernel). Ensure a hard ethernet connection for fast commands. And then find the IP address of control box. Open chrome (as it allows you to bypass old certificates, firefox doesn't) and then go to the franka page `https://192.168.2.20/desk/`. Disable locks, enable FCI. Then to use from docker you'll need to ensure the docker container is build with same username and UID as the user you want to use. Run commands with sudo inside of docker, and add privileged (`sudo su`). Also note all nodes need to run as su, as by default shared memory is used to pass messages and this doesn't work between users immediately.
 
 ```
-docker run -it --rm --network host -v $HOME/robo_drawing:/home/student/ros_ws/src/robo_drawing --env="DISPLAY" \
+docker run -it --rm --network host -v $HOME/robo_drawing:/home/developer/ros_ws/src/robo_drawing --env="DISPLAY" \
     --env="QT_X11_NO_MITSHM=1" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
     --privileged \
     robodraw
+cd ros_ws
 colcon build --symlink-install --parallel-workers 4 --cmake-args -DCMAKE_BUILD_TYPE=Release
 ros2 run ros_franka_controller franka_controller --ros-args -p franka_address:=192.168.2.20
 ```

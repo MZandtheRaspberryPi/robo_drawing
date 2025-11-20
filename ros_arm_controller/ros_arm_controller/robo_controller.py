@@ -33,7 +33,7 @@ class RoboController(Node):
             JointState, "/target_joint_states", 5
         )
 
-        self.use_clock_time = True
+        self.use_clock_time = False
         self.declare_parameter(
             "robot_name", rclpy.Parameter.Type.STRING
         )  # mycobot_280, franka_panda
@@ -41,7 +41,7 @@ class RoboController(Node):
         self.traj_planner = None  # need starting angles
         self.cur_joint_angles = None
         self.cur_time = 0.0
-        self.target_loop_rate = 10
+        self.target_loop_rate = 20
         self.target_dt = 1 / self.target_loop_rate
 
         self.timer = self.create_timer(self.target_dt, self.timer_callback)
@@ -88,7 +88,7 @@ class RoboController(Node):
         if self.robot_name == "mycobot_280":
             self.joint_angle_diff_tol = 5 * math.pi / 180
         else:
-            self.joint_angle_diff_tol = 2 * math.pi / 180
+            self.joint_angle_diff_tol = 2.0 * math.pi / 180
 
     def joint_sub_cb(self, msg):
 
