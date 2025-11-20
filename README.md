@@ -1,5 +1,12 @@
 # robo_drawing
 
+A fun project to support some workshops I led for students with small robot arms. See some videos comparing the small robot arm [here](https://www.youtube.com/shorts/JGbJK4ZtMNg) to a bigger one [here](https://www.youtube.com/shorts/GrULKwoRGd8).
+
+![franka_with_pen](assets/franka_mount.jpeg)   
+![franka_drawing](assets/end_traj.jpeg)   
+![mycobot_pen](assets/marker_mount.jpeg)   
+
+
 A general overview is presented here. First, pull the docker image. This contains ros2, pybullet. Then we will run the docker image letting it access X11 ports so as to bring up graphical user interfaces (GUIs) and letting it access the folder on our computer where we have our own code. Inside of the docker container, we will build our own code (should be fast, python) and then run it. To use the real robot we will download a special docker image (built for ARM, doesn't include moveit2 as it's too heavy) and then zip it and copy it to the raspberrypi on the robot. Then we will connect to the robot and run everything from there. Students in the past have had networking trouble related to MAC/Windows machines and therefore we avoid this issue by running everything on the robot.
 
 ```
